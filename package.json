@@ -1,0 +1,32 @@
+{
+  "name": "angular-radio",
+  "version": "1.0.0",
+  "description": "ngRadio",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "karma start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kurtpeters/angular-radio.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kurtpeters/angular-radio/issues"
+  },
+  "homepage": "https://github.com/kurtpeters/angular-radio#readme",
+  "devDependencies": {
+    "angular": "^1.4.4",
+    "angular-mocks": "^1.4.4",
+    "jasmine-core": "^2.3.4",
+    "karma": "^0.13.9",
+    "karma-chrome-launcher": "^0.2.0",
+    "karma-jasmine": "^0.3.6",
+    "karma-phantomjs-launcher": "^0.2.1",
+    "phantomjs": "^1.9.18"
+  }
+}
