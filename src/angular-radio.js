@@ -80,7 +80,7 @@
     return $radioChannels[namespace] || ($radioChannels[namespace] = new $RadioChannel());
   }
 
-  function getRelatedListeners(events, comparators) {
+  function getRelatedListenerItems(events, comparators) {
     var index = 0,
         relatedListenerIds = [],
         item;
@@ -92,6 +92,12 @@
       }
     }
     return relatedListenerIds;
+  }
+
+  function removeItemsFromEventList(eventList, items) {
+    for (var itemsLength = items.length, idx = 0; idx < itemsLength; idx++) {
+      eventList.splice(items[idx] - idx, 1);
+    }
   }
 
 /*=====================================
@@ -107,62 +113,62 @@
 
   angular.extend($RadioChannel.prototype, {
 
-    "listenTo": function(namespace, category, callback, context) {
-      var channel = getRadioChannel(namespace);
-      channel.on(category, callback, context, this.__uid);
-      return this;
+    "listenTo": function(namespace) {
+      var args = Array.prototype.slice.call(arguments, 1),
+          channel = getRadioChannel(namespace);
+      args.push(this.__uid);
+      return channel.on.apply(channel, args);
     },
 
     "listenToOnce": function(namespace, category, callback, context) {
-      var channel = getRadioChannel(namespace);
-      channel.once(category, callback, context, this.__uid);
-      return this;
+      var args = Array.prototype.slice.call(arguments, 1),
+          channel = getRadioChannel(namespace);
+      args.push(this.__uid);
+      return channel.once.apply(channel, args);
     },
 
     "off": function(category, callback, listener) {
-      var events = this.__events[category] || [],
-          itemsToBeRemoved = [],
-          index;
+      var eventList = this.__events[category] || [],
+          voidCallback = callback === void 0,
+          voidCategory = category === void 0,
+          voidListener = listener === void 0;
 
-      if (category === void 0) {
+      if (voidCategory) {
 
-        if (listener === void 0) {
-          delete this.__events[category];
+        if (voidListener) {
+          this.__events = [];
           return this;
         } 
 
         for (var eventCategory in this.__events) {
-          events = this.__events[eventCategory];
-          itemsToBeRemoved = getRelatedListeners(events, {
+          eventList = this.__events[eventCategory];
+          removeItemsFromEventList(eventList, getRelatedListenerItems(eventList, {
             callback: callback,
             listener: listener
-          });
-          index = 0
-          for (; index < itemsToBeRemoved.length; index++) {
-            events.splice(itemsToBeRemoved[index] - index, 1);
-          }
+          }));
         }
-
         return this;
       }
 
-      itemsToBeRemoved = getRelatedListeners(events, {
+      if (voidCallback && voidListener) {
+        delete this.__events[category];
+        return this;
+      }
+
+      removeItemsFromEventList(eventList, getRelatedListenerItems(eventList, {
         callback: callback,
         listener: listener
-      });
-      index = 0;
-      for (; index < itemsToBeRemoved.length; index++) {
-        events.splice(itemsToBeRemoved[index] - index, 1);
-      }
+      }));
       return this;
     },
 
     "on": function(category, callback, context, listener) {
-      var events = this.__events[category] || (this.__events[category] = []);
-      if (callback === void 0) {
-        return;
+      var hasMultiProcesses = this._processMultipleEvents('on', category, callback, context, listener);
+      if (category === void 0 || hasMultiProcesses || callback === void 0) {
+        return this;
       }
-      events.push({
+      var eventList = this.__events[category] || (this.__events[category] = []);
+      eventList.push({
         "callback": callback,
         "context": context,
         "listener": listener
@@ -171,11 +177,13 @@
     },
 
     "once": function(category, callback) {
-      if (callback === void 0) {
-        return;
+      var args = Array.prototype.slice.call(arguments),
+          hasMultiProcesses = this._processMultipleEvents.apply(this, ['once'].concat(args));
+      if (callback === void 0 || hasMultiProcesses) {
+        return this;
       }
       callback.__once = true;
-      return this.on.apply(this, arguments);
+      return this.on.apply(this, args);
     },
 
     "reply": function(ns, value) {
@@ -207,30 +215,59 @@
     },
 
     "stopListening": function(namespace, category, callback) {
-      var channel = getRadioChannel(namespace);
-      channel.off(category, callback || null, this.__uid);
+      if (namespace === void 0) {
+        angular.forEach($radioChannels, function() {
+          channel.off(void 0, null, this.__uid);
+        });
+        return this;
+      }
+      getRadioChannel(namespace)
+        .off(category, callback || null, this.__uid);
       return this;
     },
 
     "trigger": function(category) {
-      var args = Array.prototype.slice.call(arguments, 1),
-          events = this.__events[category],
+      var DELIMITER = /\s+/g,
+          args = Array.prototype.slice.call(arguments, 1),
+          eventList = this.__events[category],
           itemsToBeRemoved = [];
-      if (events === void 0) {
+
+      if (eventList === void 0) {
+        if(category && DELIMITER.test(category)) {
+          angular.forEach(category.split(DELIMITER), function(eventName) {
+            this.trigger(eventName);
+          }, this);
+        }
         return this;
       }
-      for (var item, index = 0; index < events.length; index++) {
-        item = events[index];
+
+      for (var item, index = 0; index < eventList.length; index++) {
+        item = eventList[index];
         item.callback.apply(item.context || this.__context, args);
         if (item.callback.__once) {
           itemsToBeRemoved.push(index);
         }
       }
-      index = 0
-      for (; index < itemsToBeRemoved.length; index++) {
-        events.splice(itemsToBeRemoved[index] - index, 1);
-      }
+
+      removeItemsFromEventList(eventList, itemsToBeRemoved);
       return this;
+    },
+
+    "_processMultipleEvents": function(method, category) {
+      var DELIMITER = /\s+/g,
+          args = Array.prototype.slice.call(arguments, 3);
+      if (angular.isObject(category)) {
+        angular.forEach(category, function(_callback, _category) {
+          this[method].apply(this, [_category, _callback].concat(args));
+        }, this);
+        return true;
+      }
+      if (DELIMITER.test(category)) {
+        angular.forEach(category.split(DELIMITER), function(eventName) {
+          this[method].apply(this, [eventName].concat(args));
+        }, this);
+        return true;
+      }
     }
   });
 
@@ -246,22 +283,19 @@
 
   angular.extend($Radio.prototype, $RadioChannel.prototype, {
 
-    "channel": function(namespace) {
-      return getRadioChannel(namespace);
+    "channel": function(ns) {
+      return getRadioChannel(ns);
     },
 
-    "triggerChannel": function(namespace, category) {
-      var args = Array.prototype.slice.call(arguments, 2),
-          channel = this.channel(namespace);
-      channel.trigger.apply(channel, [category].concat(args));
+    "removeChannel": function(ns) {
+      delete $radioChannels[ns];
       return this;
     },
 
-    "removeChannel": function(namespace) {
-      if (!$Radio.prototype.hasOwnProperty(namespace)) {
-        delete this[namespace];
-      }
-      delete $radioChannels[namespace];
+    "triggerChannel": function(ns, category) {
+      var args = Array.prototype.slice.call(arguments, 1),
+          channel = this.channel(ns);
+      channel.trigger.apply(channel, args);
       return this;
     }
 
@@ -275,13 +309,19 @@
     "$radioChannels": $radioChannels
   };
 
+  function $RadioChannelProvider() {
+    this.$get = function() { return exports.$radioChannel; };
+  }
+
   function $RadioProvider() {
     this.exports = exports;
     this.$get = function() { return exports.$radio; };
   }
+
   angular.extend($RadioProvider.prototype, $Radio.prototype);
 
   angular.module('ngRadio', [])
+    .provider('$radioChannel', $RadioChannelProvider)
     .provider('$radio', $RadioProvider);
 
   return exports.$radio;
