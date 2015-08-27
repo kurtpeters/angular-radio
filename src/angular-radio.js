@@ -81,23 +81,42 @@
   }
 
   function getRelatedListenerItems(events, comparators) {
-    var index = 0,
-        relatedListenerIds = [],
-        item;
-    for (; index < events.length; index++) {
+    var relatedListenerIds = [];
+    for (var item, index = 0; index < events.length; index++) {
       item = events[index];
-      if (item.callback === comparators.callback ||
-          item.listener !== void 0 && item.listener === comparators.listener) {
+      if (item.callback === comparators.callback || item.listener !== void 0 && item.listener === comparators.listener) {
         relatedListenerIds.push(index);
       }
     }
     return relatedListenerIds;
   }
 
+  function hasMultipleEvents(method, category) {
+    var DELIMITER = /\s+/g,
+        args = Array.prototype.slice.call(arguments, 2);
+    if (angular.isObject(category)) {
+      angular.forEach(category, function(_callback, _category) {
+        this[method].apply(this, [_category, _callback].concat(args));
+      }, this);
+      return true;
+    }
+    if (DELIMITER.test(category)) {
+      angular.forEach(category.split(DELIMITER), function(eventName) {
+        this[method].apply(this, [eventName].concat(args));
+      }, this);
+      return true;
+    }
+    return false;
+  }
+
   function removeItemsFromEventList(eventList, items) {
     for (var itemsLength = items.length, idx = 0; idx < itemsLength; idx++) {
       eventList.splice(items[idx] - idx, 1);
     }
+  }
+
+  function slice(args, idx) {
+    return Array.prototype.slice.call(args, idx || 0);
   }
 
 /*=====================================
@@ -113,18 +132,20 @@
 
   angular.extend($RadioChannel.prototype, {
 
-    "listenTo": function(namespace) {
-      var args = Array.prototype.slice.call(arguments, 1),
-          channel = getRadioChannel(namespace);
-      args.push(this.__uid);
-      return channel.on.apply(channel, args);
+    "listenTo": function(channelName) {
+      var args = slice(arguments, 1),
+          channel = getRadioChannel(channelName);
+      args[3] = this.__uid;
+      channel.on.apply(channel, args);
+      return this;
     },
 
-    "listenToOnce": function(namespace, category, callback, context) {
-      var args = Array.prototype.slice.call(arguments, 1),
-          channel = getRadioChannel(namespace);
-      args.push(this.__uid);
-      return channel.once.apply(channel, args);
+    "listenToOnce": function(channelName) {
+      var args = slice(arguments, 1),
+          channel = getRadioChannel(channelName);
+      args[3] = this.__uid;
+      channel.once.apply(channel, args);
+      return this;
     },
 
     "off": function(category, callback, listener) {
@@ -132,14 +153,14 @@
           voidCallback = callback === void 0,
           voidCategory = category === void 0,
           voidListener = listener === void 0;
-
+      if (hasMultipleEvents.call(this, 'off', category, callback, listener)) {
+        return this;
+      }
       if (voidCategory) {
-
         if (voidListener) {
           this.__events = [];
           return this;
         } 
-
         for (var eventCategory in this.__events) {
           eventList = this.__events[eventCategory];
           removeItemsFromEventList(eventList, getRelatedListenerItems(eventList, {
@@ -149,12 +170,10 @@
         }
         return this;
       }
-
       if (voidCallback && voidListener) {
         delete this.__events[category];
         return this;
       }
-
       removeItemsFromEventList(eventList, getRelatedListenerItems(eventList, {
         callback: callback,
         listener: listener
@@ -163,8 +182,8 @@
     },
 
     "on": function(category, callback, context, listener) {
-      var hasMultiProcesses = this._processMultipleEvents('on', category, callback, context, listener);
-      if (category === void 0 || hasMultiProcesses || callback === void 0) {
+      var hasMultiProcesses = hasMultipleEvents.call(this, 'on', category, callback, context, listener);
+      if (hasMultiProcesses || category === void 0 || callback === void 0) {
         return this;
       }
       var eventList = this.__events[category] || (this.__events[category] = []);
@@ -177,8 +196,8 @@
     },
 
     "once": function(category, callback) {
-      var args = Array.prototype.slice.call(arguments),
-          hasMultiProcesses = this._processMultipleEvents.apply(this, ['once'].concat(args));
+      var args = slice(arguments),
+          hasMultiProcesses = hasMultipleEvents.apply(this, ['once'].concat(args));
       if (callback === void 0 || hasMultiProcesses) {
         return this;
       }
@@ -186,25 +205,37 @@
       return this.on.apply(this, args);
     },
 
-    "reply": function(ns, value) {
-      this.__items[ns] = {
+    "reply": function(itemName, value) {
+      if (hasMultipleEvents.call(this, 'reply', itemName, value)) {
+        return this;
+      };
+      this.__items[itemName] = {
         value: value
       };
       return this;
     },
 
-    "replyOnce": function(ns, value) {
-      this.__items[ns] = {
-        value: value,
-        once: true
+    "replyOnce": function(itemName, value) {
+      if (hasMultipleEvents.call(this, 'replyOnce', itemName, value)) {
+        return this;
+      };
+      this.__items[itemName] = {
+        __once: true,
+        value: value
       };
       return this;
     },
 
-    "request": function(ns) {
-      var item = this.__items[ns];
-      if (item.once) {
-        delete this.__items[ns];
+    "reset": function() {
+      this.__events = {};
+      this.__items = {};
+      return this;
+    },
+
+    "request": function(itemName) {
+      var item = this.__items[itemName] || {};
+      if (item.__once) {
+        delete this.__items[itemName];
       }
       return item.value;
     },
@@ -216,9 +247,9 @@
 
     "stopListening": function(namespace, category, callback) {
       if (namespace === void 0) {
-        angular.forEach($radioChannels, function() {
+        angular.forEach($radioChannels, function(channel) {
           channel.off(void 0, null, this.__uid);
-        });
+        }, this);
         return this;
       }
       getRadioChannel(namespace)
@@ -227,20 +258,13 @@
     },
 
     "trigger": function(category) {
-      var DELIMITER = /\s+/g,
-          args = Array.prototype.slice.call(arguments, 1),
+      var args = args = slice(arguments, 1),
           eventList = this.__events[category],
           itemsToBeRemoved = [];
-
       if (eventList === void 0) {
-        if(category && DELIMITER.test(category)) {
-          angular.forEach(category.split(DELIMITER), function(eventName) {
-            this.trigger(eventName);
-          }, this);
-        }
+        hasMultipleEvents.apply(this, ['trigger', category].concat(args));
         return this;
       }
-
       for (var item, index = 0; index < eventList.length; index++) {
         item = eventList[index];
         item.callback.apply(item.context || this.__context, args);
@@ -248,26 +272,8 @@
           itemsToBeRemoved.push(index);
         }
       }
-
       removeItemsFromEventList(eventList, itemsToBeRemoved);
       return this;
-    },
-
-    "_processMultipleEvents": function(method, category) {
-      var DELIMITER = /\s+/g,
-          args = Array.prototype.slice.call(arguments, 3);
-      if (angular.isObject(category)) {
-        angular.forEach(category, function(_callback, _category) {
-          this[method].apply(this, [_category, _callback].concat(args));
-        }, this);
-        return true;
-      }
-      if (DELIMITER.test(category)) {
-        angular.forEach(category.split(DELIMITER), function(eventName) {
-          this[method].apply(this, [eventName].concat(args));
-        }, this);
-        return true;
-      }
     }
   });
 
@@ -283,18 +289,18 @@
 
   angular.extend($Radio.prototype, $RadioChannel.prototype, {
 
-    "channel": function(ns) {
-      return getRadioChannel(ns);
+    "channel": function(channelName) {
+      return getRadioChannel(channelName);
     },
 
-    "removeChannel": function(ns) {
-      delete $radioChannels[ns];
+    "removeChannel": function(channelName) {
+      delete $radioChannels[channelName];
       return this;
     },
 
-    "triggerChannel": function(ns, category) {
+    "triggerChannel": function(channelName, category) {
       var args = Array.prototype.slice.call(arguments, 1),
-          channel = this.channel(ns);
+          channel = this.channel(channelName);
       channel.trigger.apply(channel, args);
       return this;
     }
