@@ -1,0 +1,32 @@
+{
+  "name": "angular-radio",
+  "description": "Messaging patterns for AngularJS applications.",
+  "authors": [
+    "Kurt Peters <kurtpeters.contact@gmail.com>"
+  ],
+  "main": "build/angular-radio.js",
+  "keywords": [
+    "angular",
+    "angularjs",
+    "events",
+    "broadcast",
+    "emit",
+    "pubsub",
+    "publish",
+    "subscribe",
+    "messaging"
+  ],
+  "version": "0.0.1",
+  "homepage": "https://github.com/kurtpeters/angular-radio",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "angular": ">= 1.0.8"
+  }
+}
