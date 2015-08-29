@@ -72,7 +72,7 @@
    */
   function hasMultipleEvents(method, category) {
     var DELIMITER = /\s+/g,
-        args = Array.prototype.slice.call(arguments, 2);
+        args = slice(arguments, 2);
     if (angular.isObject(category)) {
       angular.forEach(category, function(_callback, _category) {
         this[method].apply(this, [_category, _callback].concat(args));
@@ -131,10 +131,10 @@
      * @param {String} channelName
      * @returns {$RadioChannel}
      */
-    "listenTo": function(channelName) {
+    "listenTo": function(channelName, eventName, callback, context) {
       var args = slice(arguments, 1),
           channel = getRadioChannel(channelName);
-      args[3] = this.__uid;
+      context === void 0 ? args.push(this, this.__uid) : args.push(this.__uid);
       channel.on.apply(channel, args);
       return this;
     },
@@ -145,10 +145,10 @@
      * @param {String} channelName
      * @returns {$RadioChannel}
      */
-    "listenToOnce": function(channelName) {
+    "listenToOnce": function(channelName, eventName, callback, context) {
       var args = slice(arguments, 1),
           channel = getRadioChannel(channelName);
-      args[3] = this.__uid;
+      context === void 0 ? args.push(this, this.__uid) : args.push(this.__uid);
       channel.once.apply(channel, args);
       return this;
     },
@@ -391,11 +391,10 @@
      *
      * @method
      * @param {String} channelName
-     * @param {String} categoty
      * @returns {$Radio}
      */
-    "triggerChannel": function(channelName, category) {
-      var args = Array.prototype.slice.call(arguments, 1),
+    "triggerChannel": function(channelName) {
+      var args = slice(arguments, 1),
           channel = this.channel(channelName);
       channel.trigger.apply(channel, args);
       return this;
