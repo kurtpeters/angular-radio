@@ -13,66 +13,33 @@
       angular.module('app', ['ngRadio'])
 
       .config(function($radioProvider) {
-        var radio = $radioProvider.$get();
-        radio.channel('config');
+
+        var channel = $radioProvider.channel('config');
+
+        channel.listenTo('controller', 'remote:trigger', function() {
+          console.log('from another scope not yet created');
+        })
+
+        $radioProvider.on('run', function() {
+          channel.trigger('alert', 'IT HAS BEGUN!');
+          $radioProvider.triggerChannel('controller', 'remote:trigger', 'FIN');
+        });
+
       })
 
-      .controller('AppController', function($scope, $radio) {
-        var test = $radio.channel('test'),
-            tset = $radio.channel('tset');
+      .controller('AppController', function($radio) {
 
-        function test2() {
-          console.log('testChannel:go:boom 2 ', this);
-        }
+        var channel = $radio.channel('controller');
 
-        test.on('oh:hai', function() {
-          console.log('test:oh:hai test', this);
+        channel.listenTo('config', 'alert', function(msg) {
+          console.log(msg);
         });
 
-        test.on('oh:hai:there', function() {
-          console.log('test:oh:hai:there test', this);
+        channel.on('remote:trigger', function(msg) {
+          console.log(msg);
         });
 
-        test.listenTo('tset', 'oh:hai', function() {
-          console.log('tset:oh:hai test', this);
-        });
-
-        tset.listenTo('tset', 'oh:hai:there', function() {
-          console.log('tset:oh:hai:there test', this);
-        });
-
-        tset.on('oh:hai', function() {
-          console.log('tset:oh:hai tset', this);
-        });
-
-        tset.on('oh:hai:there', function() {
-          console.log('tset:oh:hai:there tset', this);
-        });
-
-        tset.listenTo('test', 'oh:hai', function() {
-          console.log('test:oh:hai tset', this);
-        });
-
-        tset.listenTo('test', 'oh:hai:there', function() {
-          console.log('test:oh:hai:there tset', this);
-        });
-
-        ngRadio.listenTo('test', 'oh:hai', function() {
-          console.log('test:oh:hai ngRadio', this);
-        });
-
-        ngRadio.listenTo('test', 'oh:hai:there', function() {
-          console.log('test:oh:hai:there ngRadio', this);
-        });
-
-        ngRadio.listenTo('tset', 'oh:hai', function() {
-          console.log('tset:oh:hai ngRadio', this);
-        });
-
-        ngRadio.listenTo('tset', 'oh:hai:there', function() {
-          console.log('tset:oh:hai:there ngRadio', this);
-        });
-
+        $radio.trigger('run');
       });
 
     </script>

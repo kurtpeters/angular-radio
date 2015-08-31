@@ -456,6 +456,7 @@
    * @func
    */
   function $RadioChannelProvider() {
+    $RadioChannel.call(this);
     this.$get = function() { return exports.$radioChannel; };
   }
   /**
@@ -464,9 +465,10 @@
    * @func
    */
   function $RadioProvider() {
-    this.exports = exports;
+    angular.extend(this, exports.$radio);
     this.$get = function() { return exports.$radio; };
   }
+  angular.extend($RadioChannelProvider.prototype, $RadioChannel.prototype);
   angular.extend($RadioProvider.prototype, $Radio.prototype);
   angular.module('ngRadio', [])
     .provider('$radioChannel', $RadioChannelProvider)
