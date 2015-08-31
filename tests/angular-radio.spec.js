@@ -255,11 +255,23 @@ describe('ngRadio', function() {
         expect(radioChannel.request('test')).toBe(value);
       });
 
-      it('should retrieve items only once if taged to do so', function() {
+      it('should invoke item if it`s a funciton', function() {
         var value = 1;
-        radioChannel.replyOnce('test', value);
-        expect(radioChannel.request('test')).toBe(value);
-        expect(radioChannel.request('test')).toBe(void 0);
+        radioChannel.replyOnce('test', function(num) {
+          return value += num;
+        });
+        expect(radioChannel.request('test', 2)).toBe(3);
+        expect(radioChannel.request('test', 3)).toBe(void 0);
+        expect(value).toBe(3);
+      });
+
+      it('should return default response item if request is undefined', function() {
+        radioChannel.reply('default', function() {
+          return 'default';
+        });
+        expect(radioChannel.request('test:item')).toBe('default');
+        radioChannel.reply('test:item', 'test response');
+        expect(radioChannel.request('test:item')).toBe('test response');
       });
     });
 
@@ -321,6 +333,42 @@ describe('ngRadio', function() {
       it('should return current instance', function() {
         expect(radioChannel.stopListening()).toBe(radioChannel);
       });
+    });
+
+    describe('#stopReplying()', function() {
+
+      it('should remove item from request list', function() {
+        radioChannel.reply('test:item', 1);
+        radioChannel.reply('test:item:two', 2);
+        expect(radioChannel.request('test:item')).toBe(1);
+        expect(radioChannel.request('test:item:two')).toBe(2);
+        radioChannel.stopReplying('test:item');
+        expect(radioChannel.request('test:item')).toBe(void 0);
+        expect(radioChannel.request('test:item:two')).toBe(2);
+      });
+
+      it('should remove all items from request list', function() {
+        radioChannel.reply('test:item', 1);
+        radioChannel.reply('test:item:two', 2);
+        expect(radioChannel.request('test:item')).toBe(1);
+        expect(radioChannel.request('test:item:two')).toBe(2);
+        radioChannel.stopReplying();
+        expect(radioChannel.request('test:item')).toBe(void 0);
+        expect(radioChannel.request('test:item:two')).toBe(void 0);
+      });
+
+      it('should retain default response item', function() {
+        radioChannel.reply('test', 'test response');
+        radioChannel.reply('default', 'default response');
+        expect(radioChannel.request('test')).toBe('test response');
+        expect(radioChannel.request('tset')).toBe('default response');
+        radioChannel.stopReplying();
+        expect(radioChannel.request('test')).toBe('default response');
+        expect(radioChannel.request('tset')).toBe('default response');
+        radioChannel.stopReplying('default');
+        expect(radioChannel.request('test')).toBe(void 0);
+        expect(radioChannel.request('tset')).toBe(void 0);
+      })
     });
 
     describe('#trigger()', function() {

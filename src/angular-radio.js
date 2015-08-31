@@ -126,6 +126,7 @@
   angular.extend($RadioChannel.prototype, {
     /**
      * listenTo()
+     * Assign channel event listeners to remote channel(s).
      *
      * @method
      * @param {String} channelName
@@ -140,6 +141,7 @@
     },
     /**
      * listenToOnce()
+     * Assign channel event listeners to remote channel(s) only once.
      *
      * @method
      * @param {String} channelName
@@ -154,6 +156,7 @@
     },
     /**
      * off()
+     * Remove event listeners from channel.
      *
      * @method
      * @param {String} category
@@ -195,6 +198,7 @@
     },
     /**
      * on()
+     * Assign event listeners to channel.
      *
      * @method
      * @param {String} category
@@ -218,6 +222,7 @@
     },
     /**
      * once()
+     * Assign event listeners to channel only once.
      *
      * @method
      * @param {String} category
@@ -235,41 +240,46 @@
     },
     /**
      * reply()
+     * Set response item to request list.
      *
      * @method
      * @param {String} itemName
      * @param {String|Number|Array|Function|Object} value
      * @returns {$RadioChannel}
      */
-    "reply": function(itemName, value) {
+    "reply": function(itemName, value, context) {
       if (hasMultipleEvents.call(this, 'reply', itemName, value)) {
         return this;
       };
       this.__items[itemName] = {
+        context: context,
         value: value
       };
       return this;
     },
     /**
      * replyOnce()
+     * Set response item to request list only once.
      *
      * @method
      * @param {String} itemName
      * @param {String|Number|Array|Function|Object} value
      * @returns {$RadioChannel}
      */
-    "replyOnce": function(itemName, value) {
+    "replyOnce": function(itemName, value, context) {
       if (hasMultipleEvents.call(this, 'replyOnce', itemName, value)) {
         return this;
       };
       this.__items[itemName] = {
         __once: true,
+        context: context,
         value: value
       };
       return this;
     },
     /**
      * reset()
+     * Return channel to original (empty) state.
      *
      * @method
      * @returns {$RadioChannel}
@@ -281,20 +291,26 @@
     },
     /**
      * request()
+     * Retrieve response item from request list.
      *
      * @method
      * @param {String} itemName
      * @returns {}
      */
     "request": function(itemName) {
-      var item = this.__items[itemName] || {};
+      var args = slice(arguments, 1),
+          item = this.__items[itemName] || this.__items.default || {};
       if (item.__once) {
-        delete this.__items[itemName];
+        this.stopReplying(itemName);
+      }
+      if (angular.isFunction(item.value)) {
+        return item.value.apply(item.context || this.__context, args);
       }
       return item.value;
     },
     /**
      * setContext()
+     * Configure default channel context for all event callbacks.
      *
      * @method
      * @param {String|Number|Array|Function|Object} context
@@ -306,6 +322,7 @@
     },
     /**
      * stopListening()
+     * Remove channel event listeners from remote channel(s).
      *
      * @method
      * @param {String} namespace
@@ -325,7 +342,26 @@
       return this;
     },
     /**
+     * stopReplying()
+     * Remove response items from request list.
+     *
+     * @method
+     * @param {String} itemName
+     * @returns {$RadioChannel}
+     */
+    "stopReplying": function(itemName) {
+      if (itemName === void 0) {
+        var defaultItem = this.__items.default;
+        this.__items = { "default": defaultItem };
+      }
+      if (typeof itemName === 'string') {
+        delete this.__items[itemName];
+      }
+      return this;
+    },
+    /**
      * trigger()
+     * Invoke event callback(s) for current channel.
      *
      * @method
      * @param {String} category
@@ -362,6 +398,7 @@
   angular.extend($Radio.prototype, $RadioChannel.prototype, {
     /**
      * channel()
+     * Retrieve remote channel and assign a default context.
      *
      * @method
      * @param {String} channelName
@@ -377,6 +414,7 @@
     },
     /**
      * removeChannel()
+     * Remove remote channel.
      *
      * @method
      * @param {String} channelName
@@ -388,6 +426,7 @@
     },
     /**
      * triggerChannel()
+     * Trigger event from remote channel.
      *
      * @method
      * @param {String} channelName
