@@ -12,9 +12,18 @@
 
       angular.module('app', ['ngRadio'])
 
-      .config(function($radioProvider) {
+      .config(function($radioProvider, $radioChannelProvider) {
 
-        var channel = $radioProvider.channel('config');
+        var anotherChanel = $radioChannelProvider.$new(),
+            channel = $radioProvider.channel('config');
+
+        $radioChannelProvider.on('channel:provider', function(msg) {
+          anotherChanel.trigger('test', msg);
+        });
+
+        anotherChanel.on('test', function(msg) {
+          $radioChannelProvider.trigger('channel:provider:2', msg);
+        });
 
         channel.listenTo('controller', 'remote:trigger', function() {
           console.log('from another scope not yet created');
@@ -24,10 +33,9 @@
           channel.trigger('alert', 'IT HAS BEGUN!');
           $radioProvider.triggerChannel('controller', 'remote:trigger', 'FIN');
         });
-
       })
 
-      .controller('AppController', function($radio) {
+      .controller('AppController', function($radio, $radioChannel) {
 
         var channel = $radio.channel('controller');
 
@@ -39,7 +47,12 @@
           console.log(msg);
         });
 
+        $radioChannel.on('channel:provider:2', function(msg) {
+          console.log(msg);
+        });
+
         $radio.trigger('run');
+        $radioChannel.trigger('channel:provider', 'app start');
       });
 
     </script>

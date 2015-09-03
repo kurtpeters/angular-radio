@@ -11,9 +11,31 @@ bower install angular-radio
 
 ```js
 angular.module('app', ['ngRadio'])
-  .controller(function($radio) {
-    var channel = $radio.channel('app', this);
+
+.config(function($radioProvider) {
+
+  var channel = $radioProvider.channel('app', this);
+
+  channel.listenTo('app:controller', 'load' function(msg) {
+    console.log(msg); // log: "AppCtrl initialized"
+    channel.trigger('init', 'Configuration initalized');
   });
+
+});
+
+.controller(function($radio) {
+
+  var channel = $radio.channel('app:controller', this);
+
+  channel.listenTo('app', 'init', function(msg) {
+    console.log(msg); // log: "Configuration initalized"
+  });
+
+  ...
+
+  channel.trigger('load', 'AppCtrl initialized');
+
+});
 ```
 
 ## API
@@ -116,6 +138,12 @@ myChannel.setContext(this);
 
 ```js
 myChannel.stopListening('auth');
+```
+
+#### `stopReplying( [channelName] )`
+
+```js
+myChannel.stopReplying('auth');
 ```
 
 #### `trigger( eventName [, args...] )`

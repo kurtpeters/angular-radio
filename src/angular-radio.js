@@ -457,7 +457,8 @@
    */
   function $RadioChannelProvider() {
     $RadioChannel.call(this);
-    this.$get = function() { return exports.$radioChannel; };
+    this.$new = function() { return new $RadioChannel(); };
+    this.$get = angular.bind(this, function() { return this; });
   }
   /**
    * $RadioProvider()

@@ -13,7 +13,7 @@ describe('ngRadio', function() {
     var radioChannel;
 
     beforeEach(function() {
-      radioChannel = new $radioChannel();
+      radioChannel = new $radioChannel.$new();
     });
 
     describe('#constructor()', function() {
