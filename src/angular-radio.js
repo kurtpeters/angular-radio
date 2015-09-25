@@ -318,6 +318,11 @@
      */
     "setContext": function(context) {
       this.__context = context || this;
+      if ('$on' in this.__context) {
+        this.__context.$on('$destroy', angular.bind(this, function() {
+          this.stopListening().reset();
+        }));
+      }
       return this;
     },
     /**
