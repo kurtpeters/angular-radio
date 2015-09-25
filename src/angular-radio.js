@@ -28,7 +28,7 @@
    * @returns {String} uid
    */
   function createUniqueId() {
-    return 'c_' + new Date().getTime();
+    return 'c_' + Date.now();
   }
   /**
    * getRadioChannel)
@@ -318,10 +318,29 @@
      */
     "setContext": function(context) {
       this.__context = context || this;
-      if ('$on' in this.__context) {
-        this.__context.$on('$destroy', angular.bind(this, function() {
+      this.setScope(this.__context);
+      return this;
+    },
+    /**
+     * setScope()
+     * Remove event listeners when given $scope is destroyed.
+     *
+     * @method
+     * @param {Object} $scope
+     * @returns {$RadioChannel}
+     */
+    "setScope": function($scope) {
+      if (angular.isFunction(this.__angularListener)) {
+        this.__angularListener();
+      }
+      if ($scope !== void 0 && '$on' in $scope) {
+        console.log('condition');
+        this.__angularListener = $scope.$on('$destroy', angular.bind(this, function() {
           this.stopListening().reset();
         }));
+        console.log(this, this.__angularListener);
+      } else {
+        delete this.__angularListener;
       }
       return this;
     },
@@ -412,8 +431,8 @@
      */
     "channel": function(channelName, context) {
       var channel = getRadioChannel(channelName);
-      if (channel !== void 0) {
-        channel.setContext(context);  
+      if (channel !== void 0 && context !== void 0) {
+        channel.setContext(context);
       }
       return channel;
     },

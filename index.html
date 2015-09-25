@@ -35,9 +35,11 @@
         });
       })
 
-      .controller('AppController', function($radio, $radioChannel) {
+      .controller('AppController', function($radio, $radioChannel, $scope, $interval) {
 
-        var channel = $radio.channel('controller');
+        var channel = $radio.channel('controller', $scope);
+
+        $scope.test = 'hahahah';
 
         channel.listenTo('config', 'alert', function(msg) {
           console.log(msg);
@@ -51,8 +53,46 @@
           console.log(msg);
         });
 
+        // $interval(function() {
+        //   channel.trigger('interval');
+        // }, 1000)
+
+        channel.on('interval', function() {
+          console.log('interval has been triggered');
+        });
+
         $radio.trigger('run');
         $radioChannel.trigger('channel:provider', 'app start');
+      })
+
+      .controller('SomeController', function($scope, $radio) {
+
+        var channel = $radio.channel('someChannel', $scope);
+
+        channel.listenTo('controller', 'interval', function() {
+          console.log('here we go again!');
+        });
+      })
+
+      .directive('someDirective', function() {
+
+        return {
+          restrict: 'E',
+          scope: {},
+          controller: 'SomeController',
+          template: '<button>CLICK</button>',
+          link: function($scope, el) {
+            el.on('click', function() {
+              console.log($scope);
+              $scope.$on('$destroy', function() {
+                console.log($scope.$parent);
+              })
+              console.log('removed');
+              $scope.$destroy();
+              el.remove();
+            })
+          }
+        };
       });
 
     </script>
@@ -60,6 +100,8 @@
   </head>
 
   <body ng-controller="AppController">
+
+    <some-directive></some-directive>
 
   </body>
 
