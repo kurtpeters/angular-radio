@@ -134,6 +134,12 @@ myChannel.request('greet');
 myChannel.setContext(this);
 ```
 
+#### `setScope( $scope )`
+
+```js
+myChannel.setScope($scope);
+```
+
 #### `stopListening( [channelName] [, eventName] [, callback] )`
 
 ```js

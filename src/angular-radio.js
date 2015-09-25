@@ -333,7 +333,7 @@
       if (angular.isFunction(this.__angularListener)) {
         this.__angularListener();
       }
-      if ($scope !== void 0 && '$on' in $scope) {
+      if (angular.isObject($scope) && '$on' in $scope) {
         console.log('condition');
         this.__angularListener = $scope.$on('$destroy', angular.bind(this, function() {
           this.stopListening().reset();
